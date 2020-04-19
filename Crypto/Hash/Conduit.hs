@@ -50,8 +50,10 @@ hashFile :: (MonadIO m, HashAlgorithm hash) => FilePath -> m (Digest hash)
 hashFile fp = liftIO $ runResourceT (sourceFile fp $$ sinkHash)
 
 
--- | A 'ConduitT' that transmits a stream of 'B.ByteString'@s@
--- calculating a digest of it. This allows you to hash and save in one stream:
+-- | A 'ConduitT' that allows a stream of 'B.ByteString'@s@ to pass
+-- through not changed, calculating a digest of it on a side. This
+-- allows you to calculate a hash and save the original content to the
+-- filesystem in one stream:
 --
 -- @
 -- hashing `'fuseUpstream'` 'Conduit.sinkFile' fp :: 'ConduitT' 'B.ByteString' () m ('Digest' hash)
