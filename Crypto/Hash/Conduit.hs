@@ -17,6 +17,7 @@ module Crypto.Hash.Conduit
     ( -- * Cryptographic hash functions
       sinkHash
     , hashFile
+    , hashing
     ) where
 
 import Crypto.Hash
@@ -47,3 +48,20 @@ sinkHash = sink hashInit
 -- @
 hashFile :: (MonadIO m, HashAlgorithm hash) => FilePath -> m (Digest hash)
 hashFile fp = liftIO $ runResourceT (sourceFile fp $$ sinkHash)
+
+
+-- | A 'ConduitT' that transmits a stream of 'B.ByteString'@s@
+-- calculating a digest of it. This allows you to hash and save in one stream:
+--
+-- @
+-- hashing `'fuseUpstream'` 'Conduit.sinkFile' fp :: 'ConduitT' 'B.ByteString' () m ('Digest' hash)
+-- @
+hashing :: (Monad m, HashAlgorithm hash) => ConduitT B.ByteString B.ByteString m (Digest hash)
+hashing = g hashInit
+  where g ctx = do
+          b <- await
+          case b of
+              Nothing -> return $! hashFinalize ctx
+              Just bs -> do
+                yield bs
+                g $! hashUpdate ctx bs

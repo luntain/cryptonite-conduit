@@ -1,8 +1,9 @@
-{-# Language OverloadedStrings #-}
+{-# Language OverloadedStrings, ScopedTypeVariables #-}
 import Conduit
 import qualified Crypto.Cipher.ChaChaPoly1305.Conduit as ChaCha
 import qualified Crypto.ECC as ECC
 import Crypto.Hash
+import Crypto.Hash.Conduit
 import Crypto.MAC.HMAC
 import Crypto.MAC.HMAC.Conduit
 import qualified Crypto.PubKey.ECIES.Conduit as PubKey
@@ -29,6 +30,9 @@ tests = testGroup "Cryptonite conduit tests"
         ]
     , testGroup "publicECC"
         [ testProperty "encrypt/decrypt works" (ioProperty . propPublicECC)
+        ]
+    , testGroup "conduit"
+        [ testProperty "hashing conduit" propHashingConduit
         ]
     ]
 
@@ -61,3 +65,10 @@ propPublicECC octets = do
       .| PubKey.decrypt scalar
       .| sinkLazy
     return $ BL.fromChunks chunksIn == chunksOut
+
+propHashingConduit :: [[Word8]] -> Bool
+propHashingConduit octets =
+    let chunksIn = map BS.pack octets
+        (resHash :: Digest MD5, chunksOut) = runConduitPure $ mapM_ yield chunksIn .| (hashing `fuseBoth` sinkLazy)
+    in
+    BL.fromChunks chunksIn == chunksOut && resHash == hash (BS.concat chunksIn)
